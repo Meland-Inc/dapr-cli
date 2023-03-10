@@ -16,6 +16,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -103,6 +104,22 @@ dapr run --app-id myapp --app-port 3000 --app-protocol grpc -- go run main.go
 				print.WarningStatusEvent(os.Stdout, "Unix domain sockets are currently a preview feature")
 				port = 0
 				grpcPort = 0
+			}
+		}
+
+		// Fix surge ip issue on Mac
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			print.FailureStatusEvent(os.Stderr, "Failed to get interface IP addresses: %s", err)
+			os.Exit(1)
+		}
+
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				ipv4 := ipnet.IP.To4()
+				if ipv4 != nil && ipv4[0] != 198 {
+					os.Setenv("DAPR_HOST_IP", ipnet.IP.String())
+				}
 			}
 		}
 
